@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An app you picked: zooms up out of the tile area while fading in. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android" android:shareInterpolator="false">
+    <alpha
+        android:fromAlpha="0.0" android:toAlpha="1.0"
+        android:duration="300"
+        android:interpolator="@android:interpolator/decelerate_cubic" />
+    <scale
+        android:fromXScale="0.88" android:toXScale="1.0"
+        android:fromYScale="0.88" android:toYScale="1.0"
+        android:pivotX="50%" android:pivotY="70%"
+        android:duration="340"
+        android:interpolator="@android:interpolator/decelerate_quint" />
+</set>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher comes back to the front: fades in while settling down from slightly zoomed-in. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android" android:shareInterpolator="false">
+    <alpha
+        android:fromAlpha="0.0" android:toAlpha="1.0"
+        android:duration="380"
+        android:interpolator="@android:interpolator/decelerate_cubic" />
+    <scale
+        android:fromXScale="1.10" android:toXScale="1.0"
+        android:fromYScale="1.10" android:toYScale="1.0"
+        android:pivotX="50%" android:pivotY="50%"
+        android:duration="460"
+        android:interpolator="@android:interpolator/decelerate_quint" />
+</set>
