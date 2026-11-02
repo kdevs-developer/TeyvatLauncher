@@ -66,10 +66,15 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -81,6 +86,8 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -97,6 +104,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.PI
 
 // Everything is laid out on the same 1920x1080 grid as the web design.
 // LocalU = how many dp one design pixel is on this screen.
@@ -158,8 +166,6 @@ fun HomeScreen(
     val autoNation = remember(now.get(Calendar.YEAR), now.get(Calendar.DAY_OF_YEAR)) { Nations.pick(now) }
     val nation = Nations.all.getOrNull(nationOverride) ?: autoNation
     val phase = Phase.of(now)
-    val time = remember(now.timeInMillis / 60_000) { SimpleDateFormat("h:mm a", Locale.getDefault()).format(now.time) }
-    val date = remember(now.get(Calendar.DAY_OF_YEAR)) { SimpleDateFormat("EEEE d MMMM", Locale.getDefault()).format(now.time) }
     val accent by animateColorAsState(nation.color, tween(700), label = "accent")
 
     var inputsOpen by remember { mutableStateOf(false) }
@@ -197,8 +203,6 @@ fun HomeScreen(
                     modifier = Modifier.padding(horizontal = 80.d),
                     nation = nation,
                     accent = accent,
-                    time = time,
-                    date = date,
                     onNation = { onNationChange((Nations.all.indexOf(nation) + 1) % Nations.all.size) },
                     onInputs = { inputsOpen = true },
                     onAction = onAction,
@@ -206,6 +210,13 @@ fun HomeScreen(
                 EmblemBand(nation, accent, Modifier.fillMaxWidth().weight(1f).padding(horizontal = 80.d))
                 AppsRow(apps, accent, backTick + homeTick, onLaunch)
             }
+            GenshinClock(
+                now = now, accent = accent,
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 80.d, bottom = 200.d).graphicsLayer {
+                    alpha = intro.value
+                    translationX = -40f * (1f - intro.value)
+                },
+            )
             if (inputsOpen) {
                 InputsPanel(
                     accent = accent,
@@ -225,8 +236,6 @@ private fun Header(
     modifier: Modifier,
     nation: Nation,
     accent: Color,
-    time: String,
-    date: String,
     onNation: () -> Unit,
     onInputs: () -> Unit,
     onAction: (Act) -> Unit,
@@ -244,17 +253,63 @@ private fun Header(
             RoundButton(Glyphs.INPUTS, accent, onInputs)
             RoundButton(Glyphs.WIFI, accent) { onAction(Act.NETWORK) }
             RoundButton(Glyphs.SETTINGS, accent) { onAction(Act.SETTINGS) }
-            Column(horizontalAlignment = Alignment.End) {
+        }
+    }
+}
+
+/**
+ * Genshin-style clock, middle-left: the time with a decorated date underneath.
+ */
+@Composable
+private fun GenshinClock(now: Calendar, accent: Color, modifier: Modifier) {
+    val hm = remember(now.timeInMillis / 60_000) { SimpleDateFormat("h:mm", Locale.getDefault()).format(now.time) }
+    val ampm = remember(now.timeInMillis / 60_000) { SimpleDateFormat("a", Locale.getDefault()).format(now.time) }
+    val weekday = remember(now.get(Calendar.DAY_OF_YEAR)) { SimpleDateFormat("EEEE", Locale.getDefault()).format(now.time).uppercase() }
+    val dayMonth = remember(now.get(Calendar.DAY_OF_YEAR)) { SimpleDateFormat("d MMMM", Locale.getDefault()).format(now.time) }
+
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.d)) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.d)) {
                 AnimatedContent(
-                    targetState = time,
+                    targetState = hm,
                     transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
                     label = "clock",
                 ) { t ->
-                    Text(t, color = Ink, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 40.s)
+                    Text(t, color = Ink, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 92.s)
                 }
-                Text(date, color = Muted, fontSize = 20.s, modifier = Modifier.padding(top = 6.d))
+                Text(
+                    ampm.uppercase(), color = accent, fontFamily = FontFamily.Serif, fontSize = 30.s,
+                    letterSpacing = 3.s, modifier = Modifier.padding(bottom = 16.d),
+                )
             }
+            ClockOrnament(accent, Modifier.size(400.d, 24.d))
+            Text(weekday, color = accent, fontFamily = FontFamily.Serif, fontSize = 24.s, letterSpacing = 7.s)
+            Text(dayMonth, color = Ink, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 42.s)
         }
+    }
+}
+
+/** Thin gold rule with a diamond and two sparks in the middle, fading out at both ends. */
+@Composable
+private fun ClockOrnament(accent: Color, modifier: Modifier) {
+    val gold = Config.ACCENT
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val u = h / 24f
+        val cy = h / 2f
+        val cx = w / 2f
+        drawLine(Brush.horizontalGradient(listOf(Color.Transparent, gold), startX = 0f, endX = cx - 30f * u), Offset(0f, cy), Offset(cx - 30f * u, cy), 1.6f * u)
+        drawLine(Brush.horizontalGradient(listOf(gold, Color.Transparent), startX = cx + 30f * u, endX = w), Offset(cx + 30f * u, cy), Offset(w, cy), 1.6f * u)
+        drawCircle(accent, 2.2f * u, Offset(cx - 22f * u, cy))
+        drawCircle(accent, 2.2f * u, Offset(cx + 22f * u, cy))
+        val d = Path().apply {
+            moveTo(cx, cy - 10f * u); lineTo(cx + 10f * u, cy); lineTo(cx, cy + 10f * u); lineTo(cx - 10f * u, cy); close()
+        }
+        drawPath(d, gold)
+        drawPath(Path().apply {
+            moveTo(cx, cy - 5f * u); lineTo(cx + 5f * u, cy); lineTo(cx, cy + 5f * u); lineTo(cx - 5f * u, cy); close()
+        }, Night)
     }
 }
 
@@ -294,7 +349,7 @@ private fun NationButton(nation: Nation, accent: Color, onClick: () -> Unit) {
         },
     ) {
         Row(Modifier.padding(horizontal = 24.d), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.d)) {
-            Box(Modifier.graphicsLayer { rotationZ = angle }) { SvgIcon(nation.icon, 30.d, accent) }
+            Box(Modifier.graphicsLayer { rotationZ = angle }) { Image(painterResource(nation.iconRes), contentDescription = nation.element, modifier = Modifier.size(30.d)) }
             AnimatedContent(
                 targetState = nation.name,
                 transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
@@ -332,10 +387,7 @@ private fun EmblemBand(nation: Nation, col: Color, modifier: Modifier) {
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(3600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe",
     )
-    val drift by inf.animateFloat(
-        initialValue = -1f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(6000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift",
-    )
+    val icon = ImageBitmap.imageResource(nation.iconRes)
     val pop = remember { Animatable(1f) }
     val flash = remember { Animatable(0f) }
     LaunchedEffect(nation.name) {
@@ -348,7 +400,7 @@ private fun EmblemBand(nation: Nation, col: Color, modifier: Modifier) {
     Canvas(modifier) {
         scale(size.width / 1760f, Offset.Zero) {
             // large logo: 460x460 at right:-60 top:-30, floating gently
-            translate(1360f, -30f + 14f * drift) {
+            translate(1360f, -30f) {
                 scale(4.6f, Offset.Zero) {
                     val mid = Offset(50f, 50f)
                     // soft pulsing glow behind everything (brighter right after a nation change)
@@ -378,12 +430,10 @@ private fun EmblemBand(nation: Nation, col: Color, modifier: Modifier) {
                         drawPath(P[Glyphs.STAR_BIG], col, alpha = 0.9f)
                         drawCircle(Night, 15f, mid)
                         drawCircle(col, 15f, mid, alpha = 0.6f, style = Stroke(0.5f))
-                        // elemental symbol, centred inside the logo
+                        // elemental symbol, centred inside the logo (same 22.8 box as before)
                         translate(50f - 11.4f, 50f - 11.4f) {
-                            scale(22.8f / 24f, Offset.Zero) {
-                                nation.icon.forEach {
-                                    drawPath(P[it], col, style = Stroke(1.2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                                }
+                            scale(22.8f / icon.width, Offset.Zero) {
+                                drawImage(icon, filterQuality = FilterQuality.High)
                             }
                         }
                     }
@@ -426,20 +476,23 @@ private fun AppsRow(apps: List<AppEntry>, accent: Color, homeKey: Int, onLaunch:
             runCatching { firstFocus.requestFocus() }
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(22.d)) {
-        Text(
-            "YOUR APPS", color = Muted, fontFamily = FontFamily.Serif, fontSize = 26.s, letterSpacing = 3.s,
-            modifier = Modifier.padding(horizontal = 80.d),
-        )
+    // Inset 80 on both sides (same as the header). Exactly VISIBLE tiles fit between the margins;
+    // the rest scroll in. The extra 12 each side is room for the focused tile to grow.
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 68.d)) {
+        val gap = 24.d
+        val edge = 12.d
+        val visible = 6
+        val tileW = (maxWidth - edge * 2 - gap * (visible - 1)) / visible
+        val tileH = tileW * 9 / 16
         LazyRow(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(24.d),
-            contentPadding = PaddingValues(horizontal = 86.d, vertical = 12.d),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            contentPadding = PaddingValues(horizontal = edge, vertical = 20.d),
         ) {
             itemsIndexed(apps, key = { _, a -> a.packageName }) { i, app ->
                 TvTile(
-                    modifier = Modifier.size(288.d, 162.d).then(if (i == 0) Modifier.focusRequester(firstFocus) else Modifier),
+                    modifier = Modifier.size(tileW, tileH).then(if (i == 0) Modifier.focusRequester(firstFocus) else Modifier),
                     corner = 22.d,
                     accent = accent,
                     onClick = { onLaunch(app) },

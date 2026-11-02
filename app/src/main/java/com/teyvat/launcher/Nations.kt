@@ -9,7 +9,7 @@ data class Nation(
     val motto: String,
     val archon: String,
     val color: Color,
-    val icon: List<String>,
+    val iconRes: Int,
 )
 
 enum class Phase {
@@ -31,13 +31,13 @@ enum class Phase {
 
 object Nations {
     val all = listOf(
-        Nation("Mondstadt", "Anemo", "Freedom", "Barbatos", Color(0xFF4FD1B5), Glyphs.ANEMO),
-        Nation("Liyue", "Geo", "Contracts", "Morax", Color(0xFFE3B04B), Glyphs.GEO),
-        Nation("Inazuma", "Electro", "Eternity", "Raiden Shogun", Color(0xFFB58CFF), Glyphs.ELECTRO),
-        Nation("Sumeru", "Dendro", "Wisdom", "Nahida", Color(0xFF8FD14F), Glyphs.DENDRO),
-        Nation("Fontaine", "Hydro", "Justice", "Focalors", Color(0xFF5DA9FF), Glyphs.HYDRO),
-        Nation("Natlan", "Pyro", "War", "Mavuika", Color(0xFFFF7A5C), Glyphs.PYRO),
-        Nation("Snezhnaya", "Cryo", "Love", "The Tsaritsa", Color(0xFF9FE6F5), Glyphs.CRYO),
+        Nation("Mondstadt", "Anemo", "Freedom", "Barbatos", Color(0xFF4FD1B5), R.drawable.el_anemo),
+        Nation("Liyue", "Geo", "Contracts", "Morax", Color(0xFFE3B04B), R.drawable.el_geo),
+        Nation("Inazuma", "Electro", "Eternity", "Raiden Shogun", Color(0xFFB58CFF), R.drawable.el_electro),
+        Nation("Sumeru", "Dendro", "Wisdom", "Nahida", Color(0xFF8FD14F), R.drawable.el_dendro),
+        Nation("Fontaine", "Hydro", "Justice", "Focalors", Color(0xFF5DA9FF), R.drawable.el_hydro),
+        Nation("Natlan", "Pyro", "War", "Mavuika", Color(0xFFFF7A5C), R.drawable.el_pyro),
+        Nation("Snezhnaya", "Cryo", "Love", "The Tsaritsa", Color(0xFF9FE6F5), R.drawable.el_cryo),
     )
 
     private fun hash(c: Calendar): Long {
