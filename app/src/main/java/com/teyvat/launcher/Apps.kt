@@ -76,9 +76,16 @@ fun loadApps(ctx: Context): List<AppEntry> {
             )
         }
 
+    fun isStreaming(e: AppEntry) =
+        Config.STREAMING_WORDS.any { e.packageName.lowercase().contains(it) || e.label.lowercase().contains(it) }
+
     val user = all.filter { it.group == AppGroup.Apps }
-    val system = all.filter { it.group == AppGroup.System }.sortedBy { it.label.lowercase() }
-    val recent = user
+    // YouTube / Prime / Netflix are system apps: they stay at the end until opened, then they can move to the front.
+    val usedStreaming = all.filter { it.group == AppGroup.System && isStreaming(it) && it.lastUsed > 0 }
+    val system = all
+        .filter { it.group == AppGroup.System && it !in usedStreaming }
+        .sortedBy { it.label.lowercase() }
+    val recent = (user + usedStreaming)
         .filter { it.lastUsed > 0 }
         .sortedByDescending { it.lastUsed }
         .take(Config.RECENT_COUNT)

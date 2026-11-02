@@ -20,4 +20,8 @@ object Config {
     /** Any app whose package name or label contains one of these words (any case) is never listed.
      *  Add more words here to hide more apps. */
     val HIDDEN_WORDS = listOf("factorymenu", "factory menu", "factory_menu")
+
+    /** Preinstalled streaming apps (they are "system" apps, so they used to be stuck at the very end).
+     *  Unused, they stay at the end. Once you open one, it moves to the front like any recent app. */
+    val STREAMING_WORDS = listOf("youtube", "netflix", "amazonvideo", "avod", "primevideo", "prime video")
 }

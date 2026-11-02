@@ -197,8 +197,6 @@ fun HomeScreen(
                     modifier = Modifier.padding(horizontal = 80.d),
                     nation = nation,
                     accent = accent,
-                    time = time,
-                    date = date,
                     onNation = { onNationChange((Nations.all.indexOf(nation) + 1) % Nations.all.size) },
                     onInputs = { inputsOpen = true },
                     onAction = onAction,
@@ -206,6 +204,13 @@ fun HomeScreen(
                 EmblemBand(nation, accent, Modifier.fillMaxWidth().weight(1f).padding(horizontal = 80.d))
                 AppsRow(apps, accent, backTick + homeTick, onLaunch)
             }
+            BigClock(
+                time = time, date = date,
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 80.d, bottom = 40.d).graphicsLayer {
+                    alpha = intro.value
+                    translationX = -40f * (1f - intro.value)
+                },
+            )
             if (inputsOpen) {
                 InputsPanel(
                     accent = accent,
@@ -225,8 +230,6 @@ private fun Header(
     modifier: Modifier,
     nation: Nation,
     accent: Color,
-    time: String,
-    date: String,
     onNation: () -> Unit,
     onInputs: () -> Unit,
     onAction: (Act) -> Unit,
@@ -244,17 +247,22 @@ private fun Header(
             RoundButton(Glyphs.INPUTS, accent, onInputs)
             RoundButton(Glyphs.WIFI, accent) { onAction(Act.NETWORK) }
             RoundButton(Glyphs.SETTINGS, accent) { onAction(Act.SETTINGS) }
-            Column(horizontalAlignment = Alignment.End) {
-                AnimatedContent(
-                    targetState = time,
-                    transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
-                    label = "clock",
-                ) { t ->
-                    Text(t, color = Ink, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 40.s)
-                }
-                Text(date, color = Muted, fontSize = 20.s, modifier = Modifier.padding(top = 6.d))
-            }
         }
+    }
+}
+
+/** Time and date, middle-left, a little bigger than before. */
+@Composable
+private fun BigClock(time: String, date: String, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.d)) {
+        AnimatedContent(
+            targetState = time,
+            transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
+            label = "clock",
+        ) { t ->
+            Text(t, color = Ink, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 84.s)
+        }
+        Text(date, color = Ink.copy(alpha = 0.85f), fontSize = 28.s, letterSpacing = 1.s)
     }
 }
 
@@ -332,10 +340,6 @@ private fun EmblemBand(nation: Nation, col: Color, modifier: Modifier) {
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(3600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe",
     )
-    val drift by inf.animateFloat(
-        initialValue = -1f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(6000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift",
-    )
     val pop = remember { Animatable(1f) }
     val flash = remember { Animatable(0f) }
     LaunchedEffect(nation.name) {
@@ -348,7 +352,7 @@ private fun EmblemBand(nation: Nation, col: Color, modifier: Modifier) {
     Canvas(modifier) {
         scale(size.width / 1760f, Offset.Zero) {
             // large logo: 460x460 at right:-60 top:-30, floating gently
-            translate(1360f, -30f + 14f * drift) {
+            translate(1360f, -30f) {
                 scale(4.6f, Offset.Zero) {
                     val mid = Offset(50f, 50f)
                     // soft pulsing glow behind everything (brighter right after a nation change)
